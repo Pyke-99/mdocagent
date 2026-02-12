@@ -2,7 +2,7 @@
 # agent and model configurations should be modified in their respective config folders
 
 defaults:
-  - retrieval: text # Change this to text/image when configuring retrieval
+  - retrieval: image # Change this to text/image when configuring retrieval
   - _self_
 
 run-name: mmlb-MDA # Experiment name
@@ -37,4 +37,4 @@ eval_agent: # Used for result evaluation
   truncate_len: null # Used for debugging; set to null for normal use
   ans_key: ans_${run-name}
   agent: base
-  model: openai
+  model: qwen3vl

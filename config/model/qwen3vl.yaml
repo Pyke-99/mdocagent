@@ -1,0 +1,9 @@
+defaults:
+  - base
+  - _self_
+
+# Path to local Qwen3 VL model directory
+model: /root/MDocAgent/models/Qwen3-VL-8B-Instruct
+model_id: /root/MDocAgent/models/Qwen3-VL-8B-Instruct
+module_name: models.qwen3vl
+class_name: MyQwen3VL

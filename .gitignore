@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Virtualenvs
+venv/
+.venv/
+env/
+
+# Editors
+.vscode/
+.idea/
+
+# Data/model artifacts
+models/
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+
+# Large data/results/temp
+data/
+results/
+tmp/
+.ragatouille/
+
+# Large files
+*.pdf
+*.pkl
+
+# Caches and outputs
+.cache/
+outputs/
+tmp/
+
+# Logs
+*.log
+
+# Distribution
+build/
+dist/
+*.egg-info/

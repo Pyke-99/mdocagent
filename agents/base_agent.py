@@ -90,19 +90,31 @@ class Agent:
         print(f"Save results to {path}.")
 
 def extract_evaluation_metrics(eval_str: str) -> Dict[str, Union[float, int]]:
+    import re
+    # 1. 尝试直接提取 JSON
     try:
         start_index = eval_str.find('{') 
         end_index = eval_str.rfind('}') + 1 
-        eval_str = eval_str[start_index:end_index]
-        metrics = json.loads(eval_str)
-        return {
-            'binary_correctness': int(metrics.get('binary_correctness', 0))
-        }
-    except json.JSONDecodeError as e:
-        return {
-            'binary_correctness': 0
-        }
-    except Exception as e:
-        return {
-            'binary_correctness': 0
-        }
+        if start_index != -1 and end_index > start_index:
+            json_str = eval_str[start_index:end_index]
+            metrics = json.loads(json_str)
+            if 'binary_correctness' in metrics:
+                return {'binary_correctness': int(metrics.get('binary_correctness', 0))}
+    except Exception:
+        pass
+    # 2. 尝试正则提取 JSON
+    try:
+        match = re.search(r'\{[^\}]*?"binary_correctness"\s*:\s*[01][^\}]*?\}', eval_str)
+        if match:
+            metrics = json.loads(match.group(0))
+            return {'binary_correctness': int(metrics.get('binary_correctness', 0))}
+    except Exception:
+        pass
+    # 3. 关键词判断
+    s = eval_str.lower()
+    if any(x in s for x in ["yes", "correct", "对", "正确", "是", "right"]):
+        return {'binary_correctness': 1}
+    if any(x in s for x in ["no", "wrong", "错误", "错", "不对", "不正确", "false"]):
+        return {'binary_correctness': 0}
+    # 4. 默认
+    return {'binary_correctness': 0}
