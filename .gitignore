@@ -13,7 +13,10 @@ env/
 .idea/
 
 # Data/model artifacts
-models/
+# Ignore all files under models/ by default, but allow Python source files
+models/**
+!models/**/
+!models/**/*.py
 *.safetensors
 *.ckpt
 *.pt
