@@ -8,7 +8,7 @@ defaults:
 run-name: mmlb-MDA # Experiment name
 
 dataset:
-  top_k: 1 # Top-k results used during inference
+  top_k: 5 # Top-k results used during inference
 
 retrieval:
   top_k: 10 # Top-k results returned during retrieval

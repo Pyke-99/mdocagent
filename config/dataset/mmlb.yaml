@@ -3,3 +3,4 @@ defaults:
   - _self_
 
 name: MMLongBench
+top_k: 5

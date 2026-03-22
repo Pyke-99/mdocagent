@@ -57,6 +57,11 @@ class MultiAgentSystem:
         if self.config.truncate_len:
             samples = samples[:self.config.truncate_len]
             
+        debug_max_samples = 100  # 设置为整数以只跑前 N 条；注释本行则跑全部样本
+
+        if 'debug_max_samples' in locals() and isinstance(debug_max_samples, int):
+            samples = samples[:debug_max_samples]
+            
         sample_no = 0
         for sample in tqdm(samples):
             if resume_path and self.config.ans_key in sample:
@@ -81,6 +86,19 @@ class MultiAgentSystem:
                 print(f"Save {sample_no} results to {path}.")
         path = dataset.dump_reults(samples)
         print(f"Save final results to {path}.")
+
+        # 如果有反思记录，则在对应 result_dir 下额外保存一个 JSON 文件
+        try:
+            if hasattr(self, "reflection_records") and self.reflection_records:
+                os.makedirs(dataset.config.result_dir, exist_ok=True)
+                reflection_path = os.path.join(
+                    dataset.config.result_dir, dataset.time + "_reflection.json"
+                )
+                with open(reflection_path, "w") as f:
+                    json.dump(self.reflection_records, f, indent=4, ensure_ascii=False)
+                print(f"Save reflection results to {reflection_path}.")
+        except Exception as e:
+            print(f"Failed to save reflection results: {e}")
     
     def clean_messages(self):
         for agent in self.agents:
