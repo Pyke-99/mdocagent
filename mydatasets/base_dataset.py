@@ -23,6 +23,20 @@ class BaseDataset():
         current_time = datetime.now()
         self.time = current_time.strftime("%Y-%m-%d-%H-%M")
     
+    def _truncate_samples(self, samples, truncate_len=None):
+        limit = truncate_len if truncate_len is not None else getattr(self.config, "truncate_len", None)
+        if limit is None:
+            return samples
+        try:
+            limit = int(limit)
+        except (TypeError, ValueError):
+            return samples
+        if limit <= 0:
+            return samples
+        if len(samples) > limit:
+            print(f"Truncate dataset samples from {len(samples)} to {limit} entries.")
+        return samples[:limit]
+    
     def load_data(self, use_retreival=True):
         path = self.config.sample_path
         if use_retreival:
@@ -36,7 +50,7 @@ class BaseDataset():
         with open(path, 'r') as f:
             samples = json.load(f)
             
-        return samples
+        return self._truncate_samples(samples)
     
     def dump_data(self, samples, use_retreival=True):
         if use_retreival:
@@ -77,9 +91,12 @@ class BaseDataset():
         question:str = sample[self.config.question_key]
         texts = []
         images = []
+        text_k = getattr(self.config, "top_k_text", getattr(self.config, "top_k", 0)) or 0
+        image_k = getattr(self.config, "top_k_image", getattr(self.config, "top_k", 0)) or 0
+        mix_k = max(text_k, image_k)
         if self.config.use_mix:
             if self.config.r_mix_key in sample:
-                for page in sample[self.config.r_mix_key][:self.config.top_k]:
+                for page in sample[self.config.r_mix_key][:mix_k]:
                     if page in sample[self.config.r_image_key]:
                         origin_image_path = ""
                         origin_image_path = content_list[page].image_path
@@ -88,10 +105,10 @@ class BaseDataset():
                         texts.append(content_list[page].txt.replace("\n", ""))
         else:
             if self.config.r_text_key in sample:
-                for page in sample[self.config.r_text_key][:self.config.top_k]:
+                for page in sample[self.config.r_text_key][:text_k]:
                     texts.append(content_list[page].txt.replace("\n", ""))
             if self.config.r_image_key in sample:
-                for page in sample[self.config.r_image_key][:self.config.top_k]:
+                for page in sample[self.config.r_image_key][:image_k]:
                     origin_image_path = ""
                     origin_image_path = content_list[page].image_path
                     images.append(origin_image_path)

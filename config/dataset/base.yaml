@@ -1,9 +1,10 @@
 name: haha-this-is-empty:D
-top_k: 1
+top_k_text: ${mdoc_agent.top_k_text_retrieval}
+top_k_image: ${mdoc_agent.top_k_image_retrieval}
 question_key: question
 gt_key: answer
 page_id_key: page_ids
-truncate_len: null
+truncate_len: 10 # Limit how many samples are loaded; set to null to use the full dataset
 max_page: 1000
 max_character_per_page: 100000
 use_mix: false

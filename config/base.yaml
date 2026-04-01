@@ -8,7 +8,8 @@ defaults:
 run-name: mmlb-MDA # Experiment name
 
 dataset:
-  top_k: 1 # Top-k results used during inference
+  top_k_text: ${mdoc_agent.top_k_text_retrieval}
+  top_k_image: ${mdoc_agent.top_k_image_retrieval}
 
 retrieval:
   top_k: 10 # Top-k results returned during retrieval
@@ -16,17 +17,22 @@ retrieval:
 
 mdoc_agent:
   cuda_visible_devices: '0,1,2,3'
+  top_k_text_retrieval: 10
+  top_k_image_retrieval: 10
+  top_k_text_after_rerank: 5
+  top_k_image_after_rerank: 5
   truncate_len: null # Used for debugging; set to null for normal use
   save_freq: 10 # Frequency of saving checkpoints
   ans_key: ans_${run-name} # Key name for generated answers during prediction
   save_message: false # Set to true to record responses from all agents
+  save_reorder: true # Save reorder agent scores/relations into results
 
   agents:
-    - agent: image_agent # Configures prompt and controls whether to use text/image as reference material
-      model: qwen2vl # Configures the model to use
+    - agent: reorder_agent # New reorder agent replaces general/critical logic
+      model: qwen2vl # Vision-language model to score text and images
     - agent: text_agent
       model: llama31
-    - agent: general_agent
+    - agent: image_agent
       model: qwen2vl
   
   sum_agent:

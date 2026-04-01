@@ -1,0 +1,18 @@
+defaults:
+  - base
+  - _self_
+  
+module_name: agents.reorder_agent
+class_name: ReorderAgent
+use_text: true
+use_image: true
+
+system_prompt: |
+  You are the Reorder Agent.
+  Return ONLY valid JSON with keys: text_results, image_results.
+  Do NOT output markdown, explanations, ranking, selected ids, relations, coordinates, or extra keys.
+  For each item use: {id, relevance, support_score, support_reason}.
+  relevance must be exactly "relevant" or "irrelevant".
+  support_score must be integer in {0,1,2,3}.
+  If relevance is "irrelevant", set support_score to 0 and support_reason to "".
+  Prefer sparse output: include only chunks with potential support; omitted ids will be treated as irrelevant by downstream code.

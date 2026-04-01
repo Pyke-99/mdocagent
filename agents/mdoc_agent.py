@@ -1,49 +1,53 @@
 
-from tqdm import tqdm
-import importlib
-import json
-import torch
-import os
+from agents.image_agent import ImageAgent
 from agents.multi_agent_system import MultiAgentSystem
-from agents.base_agent import Agent
-from mydatasets.base_dataset import BaseDataset
+from agents.reorder_agent import ReorderAgent
+from agents.text_agent import TextAgent
+
 
 class MDocAgent(MultiAgentSystem):
     def __init__(self, config):
         super().__init__(config)
+        self.reorder_agent: ReorderAgent = self._get_agent_by_class(ReorderAgent)
+        self.text_agent: TextAgent = self._get_agent_by_class(TextAgent)
+        self.image_agent: ImageAgent = self._get_agent_by_class(ImageAgent)
+
+    def _get_agent_by_class(self, cls):
+        for agent in self.agents:
+            if isinstance(agent, cls):
+                return agent
+        raise ValueError(f"Agent of type {cls.__name__} not found. Check configuration.")
     
     def predict(self, question, texts, images):
-        general_agent = self.agents[-1]
-        general_response, messages = general_agent.predict(question, texts, images, with_sys_prompt=True)
-        # print("### General Agent: "+ general_response)
-        critical_info = general_agent.self_reflect(prompt = general_agent.config.agent.critical_prompt, add_to_message=False)
-        # print("### General Critical Agent: " + critical_info)
+        text_chunks = [{"id": f"text_{idx}", "content": txt} for idx, txt in enumerate(texts or [])]
+        image_chunks = [{"id": f"image_{idx}", "content": img} for idx, img in enumerate(images or [])]
 
-        start_index = critical_info.find('{') 
-        end_index = critical_info.find('}') + 1 
-        critical_info = critical_info[start_index:end_index]
-        text_reflection = ""
-        image_reflection = ""
-        try:
-            critical_info = json.loads(critical_info)
-            text_reflection = critical_info.get("text", "")
-            image_reflection = critical_info.get("image", "")
-        except Exception as e:
-            print(e)
+        reorder_result, _ = self.reorder_agent.reorder(
+            question,
+            text_chunks,
+            image_chunks,
+            top_k_text_after_rerank=self.config.top_k_text_after_rerank,
+            top_k_image_after_rerank=self.config.top_k_image_after_rerank,
+        )
 
-        text_agent = self.agents[1]
-        image_agent = self.agents[0]
-        all_messages = "General Agent:\n" + general_response + "\n"
-        
-        relect_prompt = "\nYou may use the given clue:\n"
-        text_response, messages = text_agent.predict(question + relect_prompt +text_reflection, texts = texts, images = None, with_sys_prompt=True)
+        selected_text_ids = reorder_result.get("ranking", {}).get("selected_text_ids", [])
+        selected_image_ids = reorder_result.get("ranking", {}).get("selected_image_ids", [])
+
+        selected_text_chunks = [chunk for chunk in text_chunks if chunk["id"] in selected_text_ids]
+        selected_image_chunks = [chunk for chunk in image_chunks if chunk["id"] in selected_image_ids]
+
+        text_response, _ = self.text_agent.answer(question, selected_text_chunks, reorder_result)
+        image_response, _ = self.image_agent.answer(question, selected_image_chunks, reorder_result)
+
+        text_refusal = getattr(self.text_agent, "refusal_message", "")
+        image_refusal = getattr(self.image_agent, "refusal_message", "")
+        if text_response == text_refusal and image_response == image_refusal:
+            final_ans = "Insufficient information to answer the question."
+            return final_ans, [], reorder_result
+
+        all_messages = "Question:\n" + question + "\n"
         all_messages += "Text Agent:\n" + text_response + "\n"
-        image_response, messages = image_agent.predict(question + relect_prompt +image_reflection, texts = None, images = images, with_sys_prompt=True)
         all_messages += "Image Agent:\n" + image_response + "\n"
-            
-        # print("### Text Agent: " + text_response)
-        # print("### Image Agent: " + image_response)
         final_ans, final_messages = self.sum(all_messages)
-        # print("### Final Answer: "+final_ans)
         
-        return final_ans, final_messages
+        return final_ans, final_messages, reorder_result

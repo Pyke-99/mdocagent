@@ -63,15 +63,29 @@ class MultiAgentSystem:
                 continue
             question, texts, images = dataset.load_sample_retrieval_data(sample)
             try:
-                final_ans, final_messages = self.predict(question, texts, images)
+                predict_output = self.predict(question, texts, images)
             except RuntimeError as e:
                 print(e)
                 if "out of memory" in str(e):
                     torch.cuda.empty_cache()
-                final_ans, final_messages = None, None
+                predict_output = (None, None, None)
+
+            final_ans = None
+            final_messages = None
+            reorder_result = None
+            if isinstance(predict_output, tuple):
+                if len(predict_output) >= 2:
+                    final_ans, final_messages = predict_output[0], predict_output[1]
+                if len(predict_output) >= 3:
+                    reorder_result = predict_output[2]
+            else:
+                final_ans = predict_output
+
             sample[self.config.ans_key] = final_ans
             if self.config.save_message:
                 sample[self.config.ans_key+"_message"] = final_messages
+            if getattr(self.config, "save_reorder", False):
+                sample[self.config.ans_key+"_reorder"] = reorder_result
             torch.cuda.empty_cache()
             self.clean_messages()
             
