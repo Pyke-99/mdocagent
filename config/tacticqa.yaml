@@ -1,0 +1,6 @@
+defaults:
+  - base
+  - dataset: tacticqa
+  - _self_
+
+run-name: tacticqa-MDocAgent

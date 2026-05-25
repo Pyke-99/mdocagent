@@ -47,7 +47,7 @@ class BaseDataset():
                 print("Use original sample path!")
                 
         assert(os.path.exists(path))
-        with open(path, 'r') as f:
+        with open(path, 'r', encoding='utf-8', errors='replace') as f:
             samples = json.load(f)
             
         return self._truncate_samples(samples)
@@ -59,7 +59,7 @@ class BaseDataset():
             path = self.config.sample_path
 
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, 'w') as f:
+        with open(path, 'w', encoding='utf-8') as f:
             json.dump(samples, f, indent = 4)
         
         return path
@@ -80,7 +80,7 @@ class BaseDataset():
     
     def load_retrieval_data(self):
         assert(os.path.exists(self.config.sample_with_retrieval_path))
-        with open(self.config.sample_with_retrieval_path, 'r') as f:
+        with open(self.config.sample_with_retrieval_path, 'r', encoding='utf-8', errors='replace') as f:
             samples = json.load(f)
         for sample in tqdm(samples):
             _, sample["texts"], sample["images"] = self.load_sample_retrieval_data(sample)
@@ -160,7 +160,7 @@ class BaseDataset():
 
     def load_txt(self, file):
         max_length = self.config.max_character_per_page
-        with open(file, 'r') as file:
+        with open(file, 'r', encoding='utf-8', errors='replace') as file:
             content = file.read()
         content = content.replace('\r\n', ' ').replace('\r', ' ').replace('\n', ' ')
         return content[:max_length]
@@ -188,7 +188,7 @@ class BaseDataset():
                 txt_file = self.TEXT_FILE(doc_name,index)
                 if not os.path.exists(txt_file):
                     text = page.get_text("text")
-                    with open(txt_file, 'w') as f:
+                    with open(txt_file, 'w', encoding='utf-8') as f:
                         f.write(text)
                 text_list.append(txt_file)
                 
@@ -196,15 +196,23 @@ class BaseDataset():
     
 def extract_time(file_path):
     file_name = os.path.basename(file_path)
-    time_str = file_name.split(".json")[0]
-    return datetime.strptime(time_str, "%Y-%m-%d-%H-%M")
+    match = re.match(r"^(\d{4}-\d{2}-\d{2}-\d{2}-\d{2})\.json$", file_name)
+    if not match:
+        return None
+    return datetime.strptime(match.group(1), "%Y-%m-%d-%H-%M")
 
 def find_latest_json(result_dir):
-    pattern = os.path.join(result_dir, "*-*-*-*-*.json")
+    pattern = os.path.join(result_dir, "*.json")
     files = glob.glob(pattern)
-    files = [f for f in files if not f.endswith('_results.json')]
-    if not files:
+    valid_files = []
+    for file_path in files:
+        parsed_time = extract_time(file_path)
+        if parsed_time is not None:
+            valid_files.append((parsed_time, file_path))
+
+    if not valid_files:
         print(f"Json file not found at {result_dir}")
         return None
-    latest_file = max(files, key=extract_time)
+
+    latest_file = max(valid_files, key=lambda x: x[0])[1]
     return latest_file

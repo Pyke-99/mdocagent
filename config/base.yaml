@@ -2,7 +2,7 @@
 # agent and model configurations should be modified in their respective config folders
 
 defaults:
-  - retrieval: image # Change this to text/image when configuring retrieval
+  - retrieval: text # Change this to text/image when configuring retrieval
   - _self_
 
 run-name: mmlb-MDA # Experiment name
@@ -17,30 +17,95 @@ retrieval:
 
 mdoc_agent:
   cuda_visible_devices: '0,1,2,3'
-  top_k_text_retrieval: 10
-  top_k_image_retrieval: 10
-  top_k_text_after_rerank: 5
-  top_k_image_after_rerank: 5
-  truncate_len: null # Used for debugging; set to null for normal use
-  save_freq: 10 # Frequency of saving checkpoints
+  architecture_mode:  route_hybrid # structured | classic | single_agent | route_hybrid | single_verify | raav
+  link_mode: ${mdoc_agent.architecture_mode} # backward-compatible alias
+  agent4_input_mode: chunks_plus_rewrite # rewritten_only | chunks_plus_rewrite
+  single_agent_model: qwen3vl # qwen2vl | qwen3vl
+  single_agent_text_chunks: 4 # Number of retrieved text chunks visible to single_agent
+  single_agent_image_chunks: 4 # Number of retrieved image chunks visible to single_agent
+  resume_path: null
+  # One-knob switch for Agent2/3/4 in structured pipeline: qwen2vl | qwen3vl
+  agent234_model: qwen2vl
+  # Optional per-agent override. Keep these equal to agent234_model for tied switching.
+  agent2_model: ${mdoc_agent.agent234_model}
+  agent3_model: ${mdoc_agent.agent234_model}
+  agent4_model: ${mdoc_agent.agent234_model}
+  top_k_text_retrieval: 4
+  top_k_image_retrieval: 4
+
+  truncate_len: null # Keep this experiment to 10 samples
+
+  save_freq: 100 # Frequency of saving checkpoints
   ans_key: ans_${run-name} # Key name for generated answers during prediction
-  save_message: false # Set to true to record responses from all agents
-  save_reorder: true # Save reorder agent scores/relations into results
+  save_trace: true
+  enable_token_counting: true
+
+  single_verify:
+    # 验证器本身使用的模型
+    verifier_model: qwen3vl # qwen2vl | qwen3vl
+    # 最大 major revise 轮数（遇到 major_revise 时允许的最大重写次数）
+    max_major_revision_rounds: 2
+    # 当模型选择回避回答时的替代文本
+    abstain_answer: "Insufficient evidence to answer."
+
+  stage_models:
+    agent1: llama31
+    agent2: ${mdoc_agent.agent2_model}
+    agent3: ${mdoc_agent.agent3_model}
+    agent4: ${mdoc_agent.agent4_model}
 
   agents:
-    - agent: reorder_agent # New reorder agent replaces general/critical logic
-      model: qwen2vl # Vision-language model to score text and images
+    - agent: image_agent
+      model: qwen3vl
     - agent: text_agent
       model: llama31
-    - agent: image_agent
-      model: qwen2vl
-  
+    - agent: general_agent
+      model: qwen3vl
+
   sum_agent:
-    agent: sum_agent # Responsible for summarizing answers from all agents
-    model: qwen2vl
+    agent: sum_agent
+    model: qwen3vl
+
+  classic_models:
+    image_agent: qwen3vl
+    text_agent: llama31
+    general_agent: qwen3vl
+    sum_agent: qwen3vl
+
+  # Keep legacy keys for rollback compatibility.
+  top_k_text_after_rerank: 5
+  top_k_image_after_rerank: 5
+  save_message: false
+  save_reorder: false
+
+  # Hybrid routing architecture (additive; existing architectures remain unchanged)
+  route_hybrid:
+    enabled: true
+    gate_model: qwen3vl
+    route_model: qwen3vl
+    final_model: qwen3vl
+    detailed_trace: true
+    force_multi_agent_path: true
+    # Ablation switches for route-path analysis.
+    # agent2=false: replace evidence selection with deterministic retrieval-order passthrough.
+    # agent3=false: replace cross-modal alignment with deterministic chunk alignment.
+    agent2_enabled: true
+    agent3_enabled: true
+
+  # Route-Analysis-Answer-Verify (RAAV) pipeline (additive; does not modify existing architectures)
+  raav:
+    enabled: false  # Set to true to enable RAAV pipeline
+    model: qwen3vl  # Model for all agents: qwen3vl | qwen2vl | llama31
+    verify_single_path: false  # Whether to verify single path answers (default false for efficiency)
+    max_revision_rounds: 1  # Maximum revision rounds when major_revise is triggered
+    enable_minor_revise: true  # Whether to apply lightweight revisions for minor_revise verdict
+    route_uncertain_to_multi: true  # Tend towards multi path when uncertain
+    enable_conservative_fallback: true  # Allow conservative answer when second verification fails but has some evidence
+    abstain_answer: "Based on the provided chunks, there is not enough evidence to determine the answer."
+
 
 eval_agent: # Used for result evaluation
   truncate_len: null # Used for debugging; set to null for normal use
   ans_key: ans_${run-name}
   agent: base
-  model: qwen3vl
+  model: qwen_bailian_eval #qwen3vl

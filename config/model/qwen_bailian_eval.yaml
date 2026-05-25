@@ -1,0 +1,10 @@
+defaults:
+  - base
+  - _self_
+
+# DashScope OpenAI-compatible endpoint
+model: qwen-max-latest
+api_key: ${oc.env:DASHSCOPE_API_KEY,""}
+base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+module_name: models.openai
+class_name: MyOpenAI

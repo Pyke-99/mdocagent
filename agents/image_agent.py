@@ -6,7 +6,10 @@ from agents.base_agent import Agent
 class ImageAgent(Agent):
     refusal_message = "I cannot answer the question based on the image information."
 
-    def answer(self, question: str, image_chunks: List[Dict[str, str]], reorder_result: Dict):
+    def answer(self, question: str, image_chunks: List[Dict[str, str]], reorder_result: Dict = None):
+        if reorder_result is None:
+            return self._answer_without_reorder(question, image_chunks)
+
         selected_ids = reorder_result.get("ranking", {}).get("selected_image_ids", []) or []
         meta = {item.get("id"): item for item in reorder_result.get("image_results", []) if item.get("id")}
         image_map = {chunk["id"]: chunk["content"] for chunk in image_chunks}
@@ -39,7 +42,34 @@ class ImageAgent(Agent):
         ordered = sorted(selected, key=lambda x: x["score"], reverse=True)
         prompt = self._build_prompt(question, ordered, reorder_result.get("relations", {}))
         images_payload = [item["content"] for item in ordered]
-        response, messages = self.predict(prompt, texts=None, images=images_payload, with_sys_prompt=True)
+        response, messages, _ = self.predict(prompt, texts=None, images=images_payload, with_sys_prompt=True)
+        return response, messages
+
+    def _answer_without_reorder(self, question: str, image_chunks: List[Dict[str, str]]):
+        if not image_chunks:
+            return self.refusal_message, []
+
+        selected = []
+        for chunk in image_chunks:
+            cid = chunk.get("id")
+            path = chunk.get("content")
+            if cid is None or path is None:
+                continue
+            selected.append(
+                {
+                    "id": cid,
+                    "score": 2,
+                    "reason": "retrieval-selected",
+                    "content": path,
+                }
+            )
+
+        if not selected:
+            return self.refusal_message, []
+
+        prompt = self._build_prompt(question, selected, {})
+        images_payload = [item["content"] for item in selected]
+        response, messages, _ = self.predict(prompt, texts=None, images=images_payload, with_sys_prompt=True)
         return response, messages
 
     def _build_prompt(self, question: str, ordered_chunks: List[Dict[str, str]], relations: Dict) -> str:

@@ -10,8 +10,14 @@ class MyOpenAI(BaseModel):
     def __init__(self, config):
         super().__init__(config)
         self.model = self.config.model
+        base_url = getattr(self.config, "base_url", None)
+        client_kwargs = {
+            "api_key": self.config.api_key,
+        }
+        if base_url:
+            client_kwargs["base_url"] = base_url
         self.client = OpenAI(
-            api_key=self.config.api_key,
+            **client_kwargs,
         )
         self.create_ask_message = lambda question: {
             "role": "user",
@@ -58,7 +64,17 @@ class MyOpenAI(BaseModel):
         )
         result = response.choices[0].message.content
         messages.append(self.create_ans_message(result))
-        return result, messages
+        
+        token_usage = None
+        if self.enable_token_counting:
+            usage = response.usage
+            token_usage = {
+                "input": usage.prompt_tokens,
+                "output": usage.completion_tokens,
+                "total": usage.prompt_tokens + usage.completion_tokens
+            }
+        
+        return result, messages, token_usage
     
     def is_valid_history(self, history):
         if not isinstance(history, list):

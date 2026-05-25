@@ -1,8 +1,10 @@
 from models.base_model import BaseModel
 import base64
+import io
 import torch
 from transformers import Qwen3VLForConditionalGeneration, AutoProcessor
 import torch
+from PIL import Image
 
 def encode_image(image_path):
     with open(image_path, "rb") as image_file:
@@ -75,6 +77,23 @@ class MyQwen3VL(BaseModel):
         prompt = "\n".join(parts)
         return prompt
 
+    def _fallback_vision_info(self, messages):
+        images = []
+        for msg in messages:
+            for c in msg.get("content", []):
+                if c.get("type") != "image_url":
+                    continue
+                url = c.get("image_url", {}).get("url", "")
+                if not isinstance(url, str) or not url.startswith("data:image"):
+                    continue
+                try:
+                    b64_data = url.split(",", 1)[1]
+                    img_bytes = base64.b64decode(b64_data)
+                    images.append(Image.open(io.BytesIO(img_bytes)).convert("RGB"))
+                except Exception:
+                    continue
+        return images, []
+
     def predict(self, question, texts=None, images=None, history=None):
         messages = self.process_message(question, texts, images, history)
         # prepare inputs via processor for VL chat
@@ -85,8 +104,13 @@ class MyQwen3VL(BaseModel):
             from qwen_vl_utils import process_vision_info
             image_inputs, video_inputs = process_vision_info(messages)
         except Exception:
-            # fallback: no vision inputs
-            image_inputs, video_inputs = [], []
+            # fallback: recover images directly from message data URIs
+            image_inputs, video_inputs = self._fallback_vision_info(messages)
+
+        if not image_inputs:
+            image_inputs = None
+        if not video_inputs:
+            video_inputs = None
 
         inputs = self.processor(
             text=[text],
@@ -105,7 +129,18 @@ class MyQwen3VL(BaseModel):
             generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
         )[0]
         messages.append(self.create_ans_message(output))
-        return output, messages
+        
+        token_usage = None
+        if self.enable_token_counting:
+            input_tokens = len(inputs.input_ids[0])
+            output_tokens = len(generated_ids_trimmed[0])
+            token_usage = {
+                "input": input_tokens,
+                "output": output_tokens,
+                "total": input_tokens + output_tokens
+            }
+        
+        return output, messages, token_usage
 
     def is_valid_history(self, history):
         if not isinstance(history, list):

@@ -6,7 +6,10 @@ from agents.base_agent import Agent
 class TextAgent(Agent):
     refusal_message = "I cannot answer the question based on the text information."
 
-    def answer(self, question: str, text_chunks: List[Dict[str, str]], reorder_result: Dict):
+    def answer(self, question: str, text_chunks: List[Dict[str, str]], reorder_result: Dict = None):
+        if reorder_result is None:
+            return self._answer_without_reorder(question, text_chunks)
+
         selected_ids = reorder_result.get("ranking", {}).get("selected_text_ids", []) or []
         meta = {item.get("id"): item for item in reorder_result.get("text_results", []) if item.get("id")}
         text_map = {chunk["id"]: chunk["content"] for chunk in text_chunks}
@@ -39,7 +42,34 @@ class TextAgent(Agent):
         ordered = sorted(selected, key=lambda x: x["score"], reverse=True)
         prompt = self._build_prompt(question, ordered, reorder_result.get("relations", {}))
         texts_payload = [self._format_text(item) for item in ordered]
-        response, messages = self.predict(prompt, texts=texts_payload, images=None, with_sys_prompt=True)
+        response, messages, _ = self.predict(prompt, texts=texts_payload, images=None, with_sys_prompt=True)
+        return response, messages
+
+    def _answer_without_reorder(self, question: str, text_chunks: List[Dict[str, str]]):
+        if not text_chunks:
+            return self.refusal_message, []
+
+        selected = []
+        for chunk in text_chunks:
+            cid = chunk.get("id")
+            content = chunk.get("content")
+            if cid is None or content is None:
+                continue
+            selected.append(
+                {
+                    "id": cid,
+                    "score": 2,
+                    "reason": "retrieval-selected",
+                    "content": content,
+                }
+            )
+
+        if not selected:
+            return self.refusal_message, []
+
+        prompt = self._build_prompt(question, selected, {})
+        texts_payload = [self._format_text(item) for item in selected]
+        response, messages, _ = self.predict(prompt, texts=texts_payload, images=None, with_sys_prompt=True)
         return response, messages
 
     def _format_text(self, item: Dict[str, str]) -> str:

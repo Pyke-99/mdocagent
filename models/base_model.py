@@ -6,6 +6,7 @@ class BaseModel():
         :param config: A dictionary containing model configuration parameters.
         """
         self.config = config
+        self.enable_token_counting = getattr(config, 'enable_token_counting', False)
         
     def predict(self, question, texts = None, images = None, history = None):
         pass

@@ -1,16 +1,22 @@
 from models.base_model import BaseModel
 from transformers import Qwen2VLForConditionalGeneration, AutoProcessor, Qwen2_5_VLForConditionalGeneration, AutoTokenizer
-from qwen_vl_utils import process_vision_info
 import torch
+
+try:
+    from qwen_vl_utils import process_vision_info
+except Exception:
+    def process_vision_info(messages):
+        return [], []
 
 class Qwen2VL(BaseModel):
     def __init__(self, config):
         super().__init__(config)
         max_pixels = 2048*28*28
+        use_fast = bool(getattr(self.config, "use_fast_processor", False))
         self.model = Qwen2VLForConditionalGeneration.from_pretrained(
-            self.config.model_id, torch_dtype="auto", device_map="balanced_low_0"
+            self.config.model_id, dtype="auto", device_map="auto"
         )
-        self.processor = AutoProcessor.from_pretrained(self.config.model_id) # , max_pixels=max_pixels
+        self.processor = AutoProcessor.from_pretrained(self.config.model_id, use_fast=use_fast) # , max_pixels=max_pixels
         self.create_ask_message = lambda question: {
             "role": "user",
             "content": [
@@ -56,9 +62,11 @@ class Qwen2VL(BaseModel):
         image_inputs, video_inputs = process_vision_info(messages)
         inputs = self.processor(
             text=[text],
-            images=image_inputs,
-            videos=video_inputs,
+            **({"images": image_inputs} if image_inputs else {}),
+            **({"videos": video_inputs} if video_inputs else {}),
             padding=True,
+            truncation=True,
+            max_length=32768,
             return_tensors="pt",
         )
         inputs = inputs.to("cuda")
@@ -71,8 +79,19 @@ class Qwen2VL(BaseModel):
             generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
         )[0]
         messages.append(self.create_ans_message(output_text))
+        
+        token_usage = None
+        if self.enable_token_counting:
+            input_tokens = len(inputs.input_ids[0])
+            output_tokens = len(generated_ids_trimmed[0])
+            token_usage = {
+                "input": input_tokens,
+                "output": output_tokens,
+                "total": input_tokens + output_tokens
+            }
+        
         self.clean_up()
-        return output_text, messages
+        return output_text, messages, token_usage
         
     def is_valid_history(self, history):
         if not isinstance(history, list):
@@ -96,10 +115,11 @@ class Qwen2VL(BaseModel):
 class Qwen2_5VL(Qwen2VL):
     def __init__(self, config):
         self.config = config
+        use_fast = bool(getattr(self.config, "use_fast_processor", False))
         self.model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-            self.config.model_id, torch_dtype="auto", device_map="balanced_low_0"
+            self.config.model_id, dtype="auto", device_map="balanced_low_0"
         )
-        self.processor = AutoProcessor.from_pretrained(self.config.model_id)
+        self.processor = AutoProcessor.from_pretrained(self.config.model_id, use_fast=use_fast)
         self.create_ask_message = lambda question: {
             "role": "user",
             "content": [
