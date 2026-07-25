@@ -18,7 +18,6 @@ class RouteAgent2Output:
     requires_table: bool = False
     requires_image: bool = False
     candidate_evidence: List[RouteEvidenceItem] = field(default_factory=list)
-    route_to_multi: bool = False
     reason: str = ""
 
 

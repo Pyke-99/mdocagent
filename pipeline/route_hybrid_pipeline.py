@@ -193,7 +193,6 @@ class RouteHybridPipeline:
             "requires_table": any("table" in str(s).lower() for s in gate_dict.get("key_signals", [])),
             "requires_image": bool(image_chunks),
             "candidate_evidence": candidate_evidence,
-            "route_to_multi": gate_dict.get("route", "complex") == "complex",
             "reason": "agent2_ablation_passthrough",
         }
 

@@ -117,9 +117,6 @@ Label each piece as:
    - partial
    - background
 
-5. Decide whether multi-agent processing is needed:
-   route_to_multi = true / false
-
 Output JSON:
 {
   "question_type": "",
@@ -132,7 +129,6 @@ Output JSON:
   "candidate_evidence": [
     {"text": "...", "type": "direct|partial|background"}
   ],
-  "route_to_multi": true/false,
   "reason": ""
 }
 
@@ -177,9 +173,6 @@ Constraints:
    - partial（部分）
    - background（背景）
 
-5. 决定是否需要多智能体处理：
-   route_to_multi = true / false
-
 输出 JSON：
 {
   "question_type": "",
@@ -192,7 +185,6 @@ Constraints:
   "candidate_evidence": [
     {"text": "...", "type": "direct|partial|background"}
   ],
-  "route_to_multi": true/false,
   "reason": ""
 }
 

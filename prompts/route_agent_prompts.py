@@ -31,9 +31,6 @@ Label each piece as:
    - partial
    - background
 
-5. Decide whether multi-agent processing is needed:
-   route_to_multi = true / false
-
 Output JSON:
 {
   "question_type": "",
@@ -46,7 +43,6 @@ Output JSON:
   "candidate_evidence": [
     {"text": "...", "type": "direct|partial|background"}
   ],
-  "route_to_multi": true/false,
   "reason": ""
 }
 

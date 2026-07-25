@@ -56,7 +56,6 @@ class RouteAgent2:
         requires_image = bool(parsed.get("requires_image", False))
 
         candidate_evidence = self._parse_evidence(parsed.get("candidate_evidence", []))
-        route_to_multi = bool(parsed.get("route_to_multi", False))
         reason = str(parsed.get("reason", parsed.get("route_reason", ""))).strip()
         
         return RouteAgent2Output(
@@ -68,7 +67,6 @@ class RouteAgent2:
             requires_table=requires_table,
             requires_image=requires_image,
             candidate_evidence=candidate_evidence,
-            route_to_multi=route_to_multi,
             reason=reason,
         )
 
@@ -95,7 +93,6 @@ class RouteAgent2:
             requires_table=False,
             requires_image=bool(images),
             candidate_evidence=[],
-            route_to_multi=False,
             reason="fallback",
         )
 

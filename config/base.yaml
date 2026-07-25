@@ -33,7 +33,7 @@ mdoc_agent:
   top_k_text_retrieval: 4
   top_k_image_retrieval: 4
 
-  truncate_len: null # Keep this experiment to 10 samples
+  truncate_len: 10 # Keep this experiment to 10 samples
 
   save_freq: 100 # Frequency of saving checkpoints
   ans_key: ans_${run-name} # Key name for generated answers during prediction

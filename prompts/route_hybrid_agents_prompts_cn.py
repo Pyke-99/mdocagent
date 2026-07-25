@@ -39,11 +39,9 @@ ROUTE_AGENT2_PROMPT_CN = """你是 Agent2（初步答案 + 路由决策）。
 4. 提取关键实体和约束条件。
 5. 从提供的片段中提取候选证据，并将每个标记为直接/部分/背景。
 6. 指出证据覆盖、与表格相关、是否需要跨部分、证据不足等信息。
-7. 始终提供候选答案，即使 route_to_multi 为 true。该答案是初步答案，将用作回退方案。
 
 输出一个JSON对象，包含以下键：
 - candidate_answer：候选答案
-- route_to_multi：是否路由到多智能体
 - route_reason：路由原因
 - question_type：问题类型
 - key_entities：关键实体
